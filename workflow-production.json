@@ -1,0 +1,2207 @@
+{
+  "name": "AI newsletter automation",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "weeks",
+              "triggerAtDay": [
+                1
+              ],
+              "triggerAtHour": 6
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        0
+      ],
+      "id": "0cb86e43-fd4e-42a3-8d58-5d2d8b4ee3a9",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "operation": "search",
+        "base": {
+          "__rl": true,
+          "value": "appQgQ1YDOK8zXQPC",
+          "mode": "list",
+          "cachedResultName": "Untitled Base",
+          "cachedResultUrl": "https://airtable.com/appQgQ1YDOK8zXQPC"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tble2fNW5HdtvDoem",
+          "mode": "list",
+          "cachedResultName": "Feed config",
+          "cachedResultUrl": "https://airtable.com/appQgQ1YDOK8zXQPC/tble2fNW5HdtvDoem"
+        },
+        "filterByFormula": "={Active} = TRUE()",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.2,
+      "position": [
+        208,
+        0
+      ],
+      "id": "ee0d2ca9-9154-4928-b0ec-3514239f48f5",
+      "name": "Get Active Feeds",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "xga7Pc3nPg9k4QqR",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "search",
+        "base": {
+          "__rl": true,
+          "value": "appQgQ1YDOK8zXQPC",
+          "mode": "list",
+          "cachedResultName": "Untitled Base",
+          "cachedResultUrl": "https://airtable.com/appQgQ1YDOK8zXQPC"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tbl7OJNAokTSwnM0W",
+          "mode": "list",
+          "cachedResultName": "Article pool",
+          "cachedResultUrl": "https://airtable.com/appQgQ1YDOK8zXQPC/tbl7OJNAokTSwnM0W"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.2,
+      "position": [
+        416,
+        0
+      ],
+      "id": "6ade28a6-9bdd-443d-8bf7-9550b75a2565",
+      "name": "Get Existing URLs",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "xga7Pc3nPg9k4QqR",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        592,
+        176
+      ],
+      "id": "ddb47d4a-9564-4b88-9974-46b0e308736f",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.fields.Feed_URL }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1.2,
+      "position": [
+        736,
+        336
+      ],
+      "id": "5741baa2-0662-477a-ae33-9f1dd6bd3f7e",
+      "name": "RSS Read1",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const existingUrls = new Set(\n  $('Get Existing URLs').all().map(i => i.json.fields.URL)\n);\n\nreturn items.filter(item => !existingUrls.has(item.json.link));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        800,
+        80
+      ],
+      "id": "9b1a1227-078e-4727-b1c1-828e9a834c04",
+      "name": "Deduplicate Against Article_Pool"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are ranking news articles for relevance to DevOps and infrastructure engineers.\n\nArticles:\n{{ $json.title }} — {{ $json.link }} — {{ $json.contentSnippet }}\n\nScore this article 1-10 for relevance to a technical audience at a DevOps SaaS company. Return only the score and a one-sentence reason.",
+        "hasOutputParser": true,
+        "needsFallback": true,
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        1472,
+        352
+      ],
+      "id": "c64fe4db-10ae-4fe2-8018-995575df2c56",
+      "name": "Rank Articles",
+      "retryOnFail": true
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-3.6-flash",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.1,
+      "position": [
+        1360,
+        576
+      ],
+      "id": "b1cec8f6-f872-4005-a105-fb47934365b5",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "HmbWzJmNXu4Lonl4",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"score\": \"number\",\n  \"reason\": \"string\"\n}",
+        "autoFix": true
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        1584,
+        560
+      ],
+      "id": "0da70a41-5d31-434c-8b39-33c065173d5e",
+      "name": "Structured Output Parser"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        1216,
+        80
+      ],
+      "id": "5acbe06d-cfe7-474f-b76e-0f9edbf157d4",
+      "name": "Loop Over Items1"
+    },
+    {
+      "parameters": {
+        "amount": 15
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        1328,
+        272
+      ],
+      "id": "3568ac39-2366-4194-a596-ebc3c1c00a9c",
+      "name": "Wait",
+      "webhookId": "d0954c81-dcf1-456d-b99b-006670e4c4c2"
+    },
+    {
+      "parameters": {
+        "maxItems": 8
+      },
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        1008,
+        80
+      ],
+      "id": "659832b0-240e-48fb-a0ca-94572fbdb0c0",
+      "name": "Limit"
+    },
+    {
+      "parameters": {
+        "operation": "search",
+        "base": {
+          "__rl": true,
+          "value": "appQgQ1YDOK8zXQPC",
+          "mode": "list",
+          "cachedResultName": "Untitled Base",
+          "cachedResultUrl": "https://airtable.com/appQgQ1YDOK8zXQPC"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tbl49Jt7ITO1PbSBA",
+          "mode": "list",
+          "cachedResultName": "Brand_Guidelines",
+          "cachedResultUrl": "https://airtable.com/appQgQ1YDOK8zXQPC/tbl49Jt7ITO1PbSBA"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.2,
+      "position": [
+        1664,
+        64
+      ],
+      "id": "b7e77494-27fb-4ead-904b-fc5db206fdd8",
+      "name": "Get Brand Guidelines",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "xga7Pc3nPg9k4QqR",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const articles = $('Filter Top Articles').all();\nconst summary = articles.map((a, i) =>\n  `${i+1}. ${a.json.title} — ${a.json.contentSnippet}`\n).join('\\n');\n\nreturn [{ json: { articleList: summary } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1872,
+        64
+      ],
+      "id": "a46f7e60-4d5e-43a8-a214-77c516f69509",
+      "name": "Aggregate Articles"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-3.6-flash",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.1,
+      "position": [
+        2080,
+        240
+      ],
+      "id": "45fb203c-5a63-4e19-b6fd-8c6ac0a753de",
+      "name": "Google Gemini Chat Model1",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "b86t9ijdbERxzXBC",
+          "name": "Google Gemini(PaLM) Api account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"subject_options\": [\"string\"],\n  \"intro\": \"string\",\n  \"sections\": [\n    {\"title\": \"string\", \"body\": \"string\"}\n  ],\n  \"cta\": \"string\"\n}",
+        "autoFix": true
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        2208,
+        272
+      ],
+      "id": "ef5ae711-7315-47ea-9af7-939846546159",
+      "name": "Structured Output Parser1"
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "base": {
+          "__rl": true,
+          "value": "appQgQ1YDOK8zXQPC",
+          "mode": "list",
+          "cachedResultName": "Untitled Base",
+          "cachedResultUrl": "https://airtable.com/appQgQ1YDOK8zXQPC"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tbln1MQlxphftV4R1",
+          "mode": "list",
+          "cachedResultName": "Newsletter Archive",
+          "cachedResultUrl": "https://airtable.com/appQgQ1YDOK8zXQPC/tbln1MQlxphftV4R1"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Open Rate": 0,
+            "CTR": 0,
+            "Unsubscribe Rate": 0,
+            "Status": "Draft",
+            "Week": "={{ $now.toISODate() }}",
+            "Articles Used": "={{ $('Filter Top Articles').all().map(a => a.json.title).join(', ') }}",
+            "Subject Line": "={{ $json.output.subject_options[0] }}",
+            "Newsletter Content": "={{ JSON.stringify($json.output) }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Id",
+              "displayName": "Id",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": false
+            },
+            {
+              "id": "Subject Line",
+              "displayName": "Subject Line",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "Draft",
+                  "value": "Draft"
+                },
+                {
+                  "name": "Sent",
+                  "value": "Sent"
+                }
+              ],
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Campaign ID",
+              "displayName": "Campaign ID",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Open Rate",
+              "displayName": "Open Rate",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "CTR",
+              "displayName": "CTR",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Unsubscribe Rate",
+              "displayName": "Unsubscribe Rate",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Articles Used",
+              "displayName": "Articles Used",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Brand Guideline",
+              "displayName": "Brand Guideline",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Week",
+              "displayName": "Week",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "dateTime",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Audience Segments",
+              "displayName": "Audience Segments",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Newsletter Content",
+              "displayName": "Newsletter Content",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {
+          "typecast": true
+        }
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.2,
+      "position": [
+        2432,
+        64
+      ],
+      "id": "23a73191-3397-4ecd-af0c-e053c36b1ead",
+      "name": "Save Draft to Airtable",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "xga7Pc3nPg9k4QqR",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are an expert email copywriter for {{ $('Get Brand Guidelines').item.json.fields.Company }}.\n\nTone: {{ $('Get Brand Guidelines').item.json.fields.Tone }}\nAudience: {{ $('Get Brand Guidelines').item.json.fields.Audience }}\nWriting Style: {{ $('Get Brand Guidelines').item.json.fields.Writing_Style }}\nCTA: {{ $('Get Brand Guidelines').item.json.fields.CTA }}\nAvoid these words: {{ $('Get Brand Guidelines').item.json.fields.Banned_Words }}\n\nRules:\n- Keep the newsletter under 600 words.\n- Use short paragraphs.\n- Never invent facts — only reference the article summaries below.\n- Include exactly one clear call to action.\n\nArticles:\n{{ $json.articleList }}\n\nReturn a JSON object with exactly these fields: \"subject_options\" (an array of exactly 3 subject line strings), \"intro\" (a string), \"sections\" (an array of exactly 3 objects, each with \"title\" and \"body\" string fields), and \"cta\" (a string). Use these exact field names.",
+        "hasOutputParser": true,
+        "needsFallback": true,
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        2080,
+        64
+      ],
+      "id": "4bf4aeb0-ae0e-4e1d-9bdd-b688a8a7e64c",
+      "name": "Generate Newsletter",
+      "retryOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "return items\n  .sort((a, b) => b.json.score - a.json.score)\n  .slice(0, 8);"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1472,
+        64
+      ],
+      "id": "5fd1acf5-14ac-4b03-b7f7-96b02f3bf01e",
+      "name": "Filter Top Articles"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{\n  json: {\n    title: $('Wait').item.json.title,\n    link: $('Wait').item.json.link,\n    contentSnippet: $('Wait').item.json.contentSnippet,\n    score: $json.output.score,\n    reason: $json.output.reason\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1824,
+        352
+      ],
+      "id": "e4dc58bb-c220-42ce-b674-51cabfaa2ed7",
+      "name": "Merge Score With Article"
+    },
+    {
+      "parameters": {
+        "model": "llama-3.3-70b-versatile",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        2160,
+        384
+      ],
+      "id": "2b2caa7a-5d98-4fdc-8fe8-d94fd390ec08",
+      "name": "Groq Chat Model1",
+      "credentials": {
+        "groqApi": {
+          "id": "9NCvuedOEUAxnaYi",
+          "name": "Groq account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "4241ac8b-5022-44ae-ac31-774246325967",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        1136
+      ],
+      "id": "28fc8861-51cc-4b2b-b775-f18c65f37886",
+      "name": "Slack Approval Webhook",
+      "webhookId": "4241ac8b-5022-44ae-ac31-774246325967"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.action_id }}",
+                    "rightValue": "approve",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "4487a1c8-8229-4b47-9efb-c500cd720477"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "item 0"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "8b75057b-1585-4af0-b9fb-1227eb3aa805",
+                    "leftValue": "={{ $json.action_id }}",
+                    "rightValue": "edit",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "edit"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "cdcc2897-d5ae-468d-9329-523dd73f2cc2",
+                    "leftValue": "={{ $json.action_id }}",
+                    "rightValue": "reject",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "reject"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        416,
+        1120
+      ],
+      "id": "c3ec1529-426f-4588-b3dd-107acadc2ab0",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "jsCode": "const generate = $('Generate Newsletter').item.json.output;\nconst brand = $('Get Brand Guidelines').item.json.fields;\nconst recordId = $json.id;\n\nconst articlesList = $('Filter Top Articles').all()\n  .map(a => '• ' + a.json.title)\n  .join('\\\\n');\n\nreturn [{\n  json: {\n    subject: generate.subject_options[0],\n    company: brand.Company,\n    week: $now.toISODate(),\n    articlesList: articlesList,\n    intro: generate.intro.replace(/\\n/g, '\\\\n'),\n    cta: generate.cta,\n    recordId: recordId\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2640,
+        64
+      ],
+      "id": "faa1bf14-c343-42cf-96ca-c4088dc280e7",
+      "name": "Build Slack Message"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://slack.com/api/chat.postMessage",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Accept-Charset",
+              "value": "utf-8"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"channel\": \"#all-saas-newsletter-automation\",\n  \"text\": \"New newsletter draft ready for approval: {{ $json.subject }}\",\n  \"blocks\": [\n    {\n      \"type\": \"header\",\n      \"text\": { \"type\": \"plain_text\", \"text\": \"📰 Newsletter Ready for Review\", \"emoji\": true }\n    },\n    {\n      \"type\": \"section\",\n      \"fields\": [\n        { \"type\": \"mrkdwn\", \"text\": \"*Subject:*\\n{{ $json.subject }}\" },\n        { \"type\": \"mrkdwn\", \"text\": \"*Company:*\\n{{ $json.company }}\" },\n        { \"type\": \"mrkdwn\", \"text\": \"*Week:*\\n{{ $json.week }}\" }\n      ]\n    },\n    { \"type\": \"divider\" },\n    {\n      \"type\": \"section\",\n      \"text\": { \"type\": \"mrkdwn\", \"text\": \"*Articles used:*\\n{{ $json.articlesList }}\" }\n    },\n    { \"type\": \"divider\" },\n    {\n      \"type\": \"section\",\n      \"text\": { \"type\": \"mrkdwn\", \"text\": \"📝 *Intro*\\n{{ $json.intro }}\" }\n    },\n    {\n      \"type\": \"context\",\n      \"elements\": [\n        { \"type\": \"mrkdwn\", \"text\": \"*CTA:* {{ $json.cta }}\" }\n      ]\n    },\n    {\n      \"type\": \"actions\",\n      \"elements\": [\n        { \"type\": \"button\", \"text\": { \"type\": \"plain_text\", \"text\": \"✅ Approve\" }, \"style\": \"primary\", \"action_id\": \"approve\", \"value\": \"{{ $json.recordId }}\" },\n        { \"type\": \"button\", \"text\": { \"type\": \"plain_text\", \"text\": \"✏️ Edit First\" }, \"action_id\": \"edit\", \"value\": \"{{ $json.recordId }}\" },\n        { \"type\": \"button\", \"text\": { \"type\": \"plain_text\", \"text\": \"❌ Reject\" }, \"style\": \"danger\", \"action_id\": \"reject\", \"value\": \"{{ $json.recordId }}\" }\n      ]\n    }\n  ]\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        2848,
+        64
+      ],
+      "id": "fa37e97b-ed7c-4cee-a425-a1f9eef3dbd9",
+      "name": "Post to Slack for Approval (HTTP)",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "BPSWhi8ZONZlZx2u",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "llama-3.3-70b-versatile",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        1504,
+        528
+      ],
+      "id": "744c6e24-690e-4ca7-823f-ba60fff6bc1b",
+      "name": "Groq Chat Model",
+      "credentials": {
+        "groqApi": {
+          "id": "9NCvuedOEUAxnaYi",
+          "name": "Groq account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "search",
+        "base": {
+          "__rl": true,
+          "value": "appQgQ1YDOK8zXQPC",
+          "mode": "list",
+          "cachedResultName": "Untitled Base",
+          "cachedResultUrl": "https://airtable.com/appQgQ1YDOK8zXQPC"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tbln1MQlxphftV4R1",
+          "mode": "list",
+          "cachedResultName": "Newsletter Archive",
+          "cachedResultUrl": "https://airtable.com/appQgQ1YDOK8zXQPC/tbln1MQlxphftV4R1"
+        },
+        "filterByFormula": "==RECORD_ID() = '{{ $json.record_id }}'",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.2,
+      "position": [
+        624,
+        944
+      ],
+      "id": "62c7729a-1332-4873-aab9-9976fe9af757",
+      "name": "Get Draft By ID",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "xga7Pc3nPg9k4QqR",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.brevo.com/v3/emailCampaigns",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"name\": \"{{ $('Get Draft By ID').item.json.fields['Subject Line'] }} - {{ $json.segmentName }} - {{ $now.toISODate() }}\",\n  \"subject\": \"{{ $('Get Draft By ID').item.json.fields['Subject Line'] }}\",\n  \"sender\": { \"name\": \"PulseStack\", \"email\": \"ganagaiusshugaba@gmail.com\" },\n  \"type\": \"classic\",\n  \"htmlContent\": \"{{ $json.htmlBody }}\",\n  \"recipients\": { \"listIds\": [{{ $json.listId }}] }\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1840,
+        1120
+      ],
+      "id": "556daa89-c773-4599-9f65-52c20c664978",
+      "name": "Send Newsletter Campaign",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "zOiU6wy4rQq13ygc",
+          "name": "Header Auth account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const payload = JSON.parse($json.body.payload);\n\nreturn [{\n  json: {\n    action_id: payload.actions[0].action_id,\n    record_id: payload.actions[0].value,\n    user: payload.user.username\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        208,
+        1136
+      ],
+      "id": "07e3cd76-b332-4017-bc0e-4611e800178f",
+      "name": "Parse Slack Payload"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.brevo.com/v3/emailCampaigns/{{ $json.id }}/sendNow",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1824,
+        1376
+      ],
+      "id": "7ce97eb8-4405-4236-a1eb-0a07deda0ac4",
+      "name": "Send Campaign Now",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "zOiU6wy4rQq13ygc",
+          "name": "Header Auth account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "base": {
+          "__rl": true,
+          "value": "appQgQ1YDOK8zXQPC",
+          "mode": "list",
+          "cachedResultName": "Untitled Base",
+          "cachedResultUrl": "https://airtable.com/appQgQ1YDOK8zXQPC"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tbln1MQlxphftV4R1",
+          "mode": "list",
+          "cachedResultName": "Newsletter Archive",
+          "cachedResultUrl": "https://airtable.com/appQgQ1YDOK8zXQPC/tbln1MQlxphftV4R1"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Open Rate": 0,
+            "CTR": 0,
+            "Unsubscribe Rate": 0,
+            "Campaign ID": "={{ $('Send Newsletter Campaign').item.json.id }}",
+            "Status": "Sent",
+            "id": "={{ $('Get Draft By ID').item.json.id }}"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": false
+            },
+            {
+              "id": "Id",
+              "displayName": "Id",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": true
+            },
+            {
+              "id": "Subject Line",
+              "displayName": "Subject Line",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "Draft",
+                  "value": "Draft"
+                },
+                {
+                  "name": "Sent",
+                  "value": "Sent"
+                }
+              ],
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Campaign ID",
+              "displayName": "Campaign ID",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Open Rate",
+              "displayName": "Open Rate",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "CTR",
+              "displayName": "CTR",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Unsubscribe Rate",
+              "displayName": "Unsubscribe Rate",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Articles Used",
+              "displayName": "Articles Used",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Brand Guideline",
+              "displayName": "Brand Guideline",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Week",
+              "displayName": "Week",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "dateTime",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Audience Segments",
+              "displayName": "Audience Segments",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Newsletter Content",
+              "displayName": "Newsletter Content",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {
+          "typecast": true
+        }
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.2,
+      "position": [
+        1344,
+        928
+      ],
+      "id": "a3e196fe-f026-45d0-ba1c-6a9c4fda95a4",
+      "name": "Mark as Sent",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "xga7Pc3nPg9k4QqR",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "search",
+        "base": {
+          "__rl": true,
+          "value": "appQgQ1YDOK8zXQPC",
+          "mode": "list",
+          "cachedResultName": "Untitled Base",
+          "cachedResultUrl": "https://airtable.com/appQgQ1YDOK8zXQPC"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tbl1NQdfsFN70YxXE",
+          "mode": "list",
+          "cachedResultName": "Audience Segments",
+          "cachedResultUrl": "https://airtable.com/appQgQ1YDOK8zXQPC/tbl1NQdfsFN70YxXE"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.2,
+      "position": [
+        832,
+        944
+      ],
+      "id": "bd15610d-2cc7-4242-babe-fe107ee258c5",
+      "name": "Get Audience Segments",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "xga7Pc3nPg9k4QqR",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        1104,
+        944
+      ],
+      "id": "d44a1ac1-1677-4e39-8a33-c9e8810f3598",
+      "name": "Loop Over Items2"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-3.6-flash",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.1,
+      "position": [
+        1280,
+        1296
+      ],
+      "id": "5d0eb6dc-c6a0-4eb4-88b9-c64b647ff118",
+      "name": "Google Gemini Chat Model2",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "b86t9ijdbERxzXBC",
+          "name": "Google Gemini(PaLM) Api account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"intro\": \"string\",\n  \"sections\": [{\"title\": \"string\", \"body\": \"string\"}],\n  \"cta\": \"string\"\n}",
+        "autoFix": true
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        1440,
+        1328
+      ],
+      "id": "bcb207d1-dab8-42e9-957d-e7b50d2d1e5f",
+      "name": "Structured Output Parser2"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are re-angling an already-written newsletter for a specific audience segment. Do not invent new facts — only rephrase emphasis and framing.\n\nOriginal intro: {{ $('Get Draft By ID').item.json.fields['Newsletter Content'] }}\n\nSegment: {{ $json.fields.Segment_Name }}\nInstruction: {{ $json.fields.Angle_Instruction }}\n\nReturn a JSON object with the same structure as the original (intro, sections with title/body, cta), rewritten to emphasize what matters to this segment.",
+        "hasOutputParser": true,
+        "needsFallback": true,
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        1280,
+        1120
+      ],
+      "id": "889e370f-276c-430d-b929-76680e83eb4c",
+      "name": "Re-angle Content",
+      "retryOnFail": true
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        1360,
+        1392
+      ],
+      "id": "0a64df69-ab5c-492f-ab50-de8d4e84c4f2",
+      "name": "Groq Chat Model2",
+      "credentials": {
+        "groqApi": {
+          "id": "9NCvuedOEUAxnaYi",
+          "name": "Groq account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const content = $json.output;\nconst segment = $('Get Audience Segments').item.json.fields;\nconst draft = $('Get Draft By ID').item.json.fields;\n\nconst intro = content.intro;\nconst cta = content.cta;\nconst sections = content.sections;\n\nconst sectionsHtml = sections.map((s, i) => `\n  <tr>\n    <td style=\"padding: 28px 40px; ${i > 0 ? 'border-top: 1px solid #eef1f4;' : ''}\">\n      <table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\">\n        <tr>\n          <td width=\"4\" style=\"background-color: #2563eb; border-radius: 2px;\"></td>\n          <td style=\"padding-left: 16px;\">\n            <h2 style=\"font-family: -apple-system, Segoe UI, Roboto, Arial, sans-serif; font-size: 17px; font-weight: 700; color: #0f172a; margin: 0 0 8px 0; letter-spacing: -0.2px;\">${s.title}</h2>\n            <p style=\"font-family: -apple-system, Segoe UI, Roboto, Arial, sans-serif; font-size: 15px; color: #475569; line-height: 1.6; margin: 0;\">${s.body}</p>\n          </td>\n        </tr>\n      </table>\n    </td>\n  </tr>\n`).join('');\n\nconst html = `\n<!DOCTYPE html>\n<html>\n<head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"></head>\n<body style=\"margin: 0; padding: 0; background-color: #f1f5f9;\">\n  <div style=\"display: none; max-height: 0; overflow: hidden;\">${intro.slice(0, 100)}</div>\n  <table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" style=\"background-color: #f1f5f9; padding: 32px 16px;\">\n    <tr>\n      <td align=\"center\">\n        <table width=\"600\" cellpadding=\"0\" cellspacing=\"0\" style=\"background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.06);\">\n\n          <tr>\n            <td style=\"background-color: #0f172a; padding: 28px 40px;\">\n              <table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\">\n                <tr>\n                  <td style=\"font-family: -apple-system, Segoe UI, Roboto, Arial, sans-serif; font-size: 20px; font-weight: 800; color: #ffffff; letter-spacing: -0.3px;\">\n                    PulseStack <span style=\"color: #60a5fa;\">Weekly</span>\n                  </td>\n                  <td align=\"right\" style=\"font-family: -apple-system, Segoe UI, Roboto, Arial, sans-serif; font-size: 12px; color: #94a3b8;\">\n                    ${draft['Week']}\n                  </td>\n                </tr>\n              </table>\n            </td>\n          </tr>\n\n          <tr>\n            <td style=\"padding: 32px 40px 8px 40px;\">\n              <p style=\"font-family: -apple-system, Segoe UI, Roboto, Arial, sans-serif; font-size: 16px; color: #1e293b; line-height: 1.65; margin: 0;\">\n                Hi {{contact.FIRSTNAME}},<br><br>${intro}\n              </p>\n            </td>\n          </tr>\n\n          ${sectionsHtml}\n\n          <tr>\n            <td style=\"padding: 8px 40px 36px 40px; text-align: center;\">\n              <a href=\"https://pulsestack.com/trial\" style=\"display: inline-block; background-color: #2563eb; color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-family: -apple-system, Segoe UI, Roboto, Arial, sans-serif; font-size: 15px; font-weight: 600;\">${cta}</a>\n            </td>\n          </tr>\n\n          <tr>\n            <td style=\"background-color: #f8fafc; padding: 24px 40px; border-top: 1px solid #eef1f4;\">\n              <p style=\"font-family: -apple-system, Segoe UI, Roboto, Arial, sans-serif; font-size: 12px; color: #94a3b8; line-height: 1.6; margin: 0;\">\n                You're receiving this because you subscribed to PulseStack Weekly.<br>\n                <a href=\"{{ unsubscribe }}\" style=\"color: #94a3b8; text-decoration: underline;\">Unsubscribe</a> &nbsp;·&nbsp; PulseStack, Inc.\n              </p>\n            </td>\n          </tr>\n\n        </table>\n      </td>\n    </tr>\n  </table>\n</body>\n</html>\n`;\n\nconst htmlEscaped = html.replace(/\\n/g, '').replace(/\"/g, '\\\\\"');\n\nreturn [{\n  json: {\n    htmlBody: htmlEscaped,\n    listId: segment.Mailchimp_List_ID_Or_Brevo_List_ID,\n    segmentName: segment.Segment_Name\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1632,
+        1120
+      ],
+      "id": "59b8369b-9896-472c-ae40-dd4de8a65641",
+      "name": "Build Segmented HTML"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://slack.com/api/chat.postMessage",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"channel\": \"#all-saas-newsletter-automation\",\n  \"text\": \"❌ Draft rejected by {{ $('Parse Slack Payload').item.json.user }}. It will not be sent — a new draft will generate next cycle.\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        816,
+        1360
+      ],
+      "id": "f5b722e2-62a1-4c67-b7cc-2a031e1d0c97",
+      "name": "Notify Rejection",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "zOiU6wy4rQq13ygc",
+          "name": "Header Auth account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "base": {
+          "__rl": true,
+          "value": "appQgQ1YDOK8zXQPC",
+          "mode": "list",
+          "cachedResultName": "Untitled Base",
+          "cachedResultUrl": "https://airtable.com/appQgQ1YDOK8zXQPC"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tbln1MQlxphftV4R1",
+          "mode": "list",
+          "cachedResultName": "Newsletter Archive",
+          "cachedResultUrl": "https://airtable.com/appQgQ1YDOK8zXQPC/tbln1MQlxphftV4R1"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "id": "={{ $json.record_id }}",
+            "Status": "rejected",
+            "Campaign ID": 0,
+            "Open Rate": 0,
+            "CTR": 0,
+            "Unsubscribe Rate": 0
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": false
+            },
+            {
+              "id": "Id",
+              "displayName": "Id",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": true
+            },
+            {
+              "id": "Subject Line",
+              "displayName": "Subject Line",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "Draft",
+                  "value": "Draft"
+                },
+                {
+                  "name": "Sent",
+                  "value": "Sent"
+                },
+                {
+                  "name": "rejected",
+                  "value": "rejected"
+                }
+              ],
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Campaign ID",
+              "displayName": "Campaign ID",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Open Rate",
+              "displayName": "Open Rate",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "CTR",
+              "displayName": "CTR",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Unsubscribe Rate",
+              "displayName": "Unsubscribe Rate",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Articles Used",
+              "displayName": "Articles Used",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Brand Guideline",
+              "displayName": "Brand Guideline",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Week",
+              "displayName": "Week",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "dateTime",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Audience Segments",
+              "displayName": "Audience Segments",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Newsletter Content",
+              "displayName": "Newsletter Content",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.2,
+      "position": [
+        592,
+        1360
+      ],
+      "id": "44b4c7fc-b64a-4672-9a40-84495a1541bb",
+      "name": "Mark as Rejected",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "xga7Pc3nPg9k4QqR",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://slack.com/api/chat.postMessage",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"channel\": \"#all-saas-newsletter-automation\",\n  \"text\": \"✏️ {{ $('Parse Slack Payload').item.json.user }} flagged this draft for editing. Update it directly here: https://airtable.com/appQgQ1YDOK8zXQPC/tbln1MQlxphftV4R1/{{ $('Parse Slack Payload').item.json.record_id }}\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        832,
+        1136
+      ],
+      "id": "995bb1ab-f01f-452d-9932-099150a4e77b",
+      "name": "Notify Edit Requested",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "zOiU6wy4rQq13ygc",
+          "name": "Header Auth account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "base": {
+          "__rl": true,
+          "value": "appQgQ1YDOK8zXQPC",
+          "mode": "list",
+          "cachedResultName": "Untitled Base",
+          "cachedResultUrl": "https://airtable.com/appQgQ1YDOK8zXQPC"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tbln1MQlxphftV4R1",
+          "mode": "list",
+          "cachedResultName": "Newsletter Archive",
+          "cachedResultUrl": "https://airtable.com/appQgQ1YDOK8zXQPC/tbln1MQlxphftV4R1"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "id": "={{ $json.record_id }}",
+            "Status": "needs edit"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": false
+            },
+            {
+              "id": "Id",
+              "displayName": "Id",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": true
+            },
+            {
+              "id": "Subject Line",
+              "displayName": "Subject Line",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "Draft",
+                  "value": "Draft"
+                },
+                {
+                  "name": "Sent",
+                  "value": "Sent"
+                },
+                {
+                  "name": "rejected",
+                  "value": "rejected"
+                },
+                {
+                  "name": "needs edit",
+                  "value": "needs edit"
+                }
+              ],
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Campaign ID",
+              "displayName": "Campaign ID",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Open Rate",
+              "displayName": "Open Rate",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "CTR",
+              "displayName": "CTR",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Unsubscribe Rate",
+              "displayName": "Unsubscribe Rate",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Articles Used",
+              "displayName": "Articles Used",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Brand Guideline",
+              "displayName": "Brand Guideline",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Week",
+              "displayName": "Week",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "dateTime",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Audience Segments",
+              "displayName": "Audience Segments",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Newsletter Content",
+              "displayName": "Newsletter Content",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.2,
+      "position": [
+        624,
+        1136
+      ],
+      "id": "4e09ff8b-0866-42c5-8c16-cf3f043a44d8",
+      "name": "Update record",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "xga7Pc3nPg9k4QqR",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
+    }
+  ],
+  "pinData": {
+    "Slack Approval Webhook": [
+      {
+        "json": {
+          "headers": {
+            "host": "f6nvuwee.rpcl.app",
+            "user-agent": "Slackbot 1.0 (+https://api.slack.com/robots)",
+            "content-length": "4696",
+            "accept": "application/json,*/*",
+            "accept-encoding": "gzip, br",
+            "cdn-loop": "cloudflare; loops=1",
+            "cf-connecting-ip": "98.92.137.181",
+            "cf-ipcountry": "US",
+            "cf-ray": "a2179a66d82a51c4-IAD",
+            "cf-visitor": "{\"scheme\":\"https\"}",
+            "content-type": "application/x-www-form-urlencoded",
+            "x-forwarded-for": "98.92.137.181, 104.22.101.31",
+            "x-forwarded-host": "f6nvuwee.rpcl.app",
+            "x-forwarded-port": "443",
+            "x-forwarded-proto": "https",
+            "x-forwarded-server": "37190987e975",
+            "x-real-ip": "104.22.101.31",
+            "x-slack-request-timestamp": "1785112935",
+            "x-slack-signature": "v0=57d7fb9e33cf9cfe7969cab14b924af21477a6888e4c4b0c87d290784f54aac0"
+          },
+          "params": {},
+          "query": {},
+          "body": {
+            "payload": "{\"type\":\"block_actions\",\"user\":{\"id\":\"U0BHEM51GTV\",\"username\":\"ganagaiusshugaba\",\"name\":\"ganagaiusshugaba\",\"team_id\":\"T0BJF8QSDB2\"},\"api_app_id\":\"A0BHQN8GKLL\",\"token\":\"RaAByczR9TjCqSLrwedulhMM\",\"container\":{\"type\":\"message\",\"message_ts\":\"1785102803.691439\",\"channel_id\":\"C0BJF8R9NHW\",\"is_ephemeral\":false},\"trigger_id\":\"11662229715383.11627296897376.f8d4fd7e26b50aa6761a8abdbbcccf42\",\"team\":{\"id\":\"T0BJF8QSDB2\",\"domain\":\"saasnewslette-xce9596\"},\"enterprise\":null,\"is_enterprise_install\":false,\"channel\":{\"id\":\"C0BJF8R9NHW\",\"name\":\"all-saas-newsletter-automation\"},\"message\":{\"user\":\"U0BJFBG7H1N\",\"type\":\"message\",\"ts\":\"1785102803.691439\",\"bot_id\":\"B0BHK1TEXDL\",\"app_id\":\"A0BHQN8GKLL\",\"text\":\"New newsletter draft ready for approval: etcd v3.7.0, custom K8s metrics, and replacing K8s Dashboard\",\"team\":\"T0BJF8QSDB2\",\"blocks\":[{\"type\":\"header\",\"block_id\":\"yLNhF\",\"text\":{\"type\":\"plain_text\",\"text\":\":newspaper: Newsletter Ready for Review\",\"emoji\":true}},{\"type\":\"section\",\"block_id\":\"ifTMT\",\"fields\":[{\"type\":\"mrkdwn\",\"text\":\"*Subject:*\\netcd v3.7.0, custom K8s metrics, and replacing K8s Dashboard\",\"verbatim\":false},{\"type\":\"mrkdwn\",\"text\":\"*Company:*\\nPulseStack\",\"verbatim\":false},{\"type\":\"mrkdwn\",\"text\":\"*Week:*\\n2026-07-26\",\"verbatim\":false}]},{\"type\":\"divider\",\"block_id\":\"yxt3O\"},{\"type\":\"section\",\"block_id\":\"STykw\",\"text\":{\"type\":\"mrkdwn\",\"text\":\"*Articles used:*\\n\\u2022 Building a Custom Metrics Exporter for Kubernetes\\n\\u2022 Kubernetes Dashboard to Headlamp: A Step-by-Step Guide\\n\\u2022 Announcing etcd v3.7.0\\n\\u2022 Operating AI\\/ML Workloads on Kubernetes: A Headlamp Plugin for Kubeflow\\n\\u2022 Introducing the Cluster API plugin for Headlamp\\n\\u2022 See your serverless: introducing the Headlamp plugin for Knative\\n\\u2022 Open source maintainership in the age of AI\\n\\u2022 Inspect Volcano workloads faster with Headlamp\",\"verbatim\":false}},{\"type\":\"divider\",\"block_id\":\"Jhwvs\"},{\"type\":\"section\",\"block_id\":\"V\\/9kP\",\"text\":{\"type\":\"mrkdwn\",\"text\":\":memo: *Intro*\\nKubernetes autoscaling requires metrics that match application reality, not just CPU spikes. This week, we cover custom Go metrics exporters, etcd v3.7.0 performance gains, and moving from Kubernetes Dashboard to Headlamp.\",\"verbatim\":false}},{\"type\":\"context\",\"block_id\":\"oB1kA\",\"elements\":[{\"type\":\"mrkdwn\",\"text\":\"*CTA:* Start your free PulseStack trial\",\"verbatim\":false}]},{\"type\":\"actions\",\"block_id\":\"AwWb+\",\"elements\":[{\"type\":\"button\",\"action_id\":\"approve\",\"text\":{\"type\":\"plain_text\",\"text\":\":white_check_mark: Approve\",\"emoji\":true},\"style\":\"primary\",\"value\":\"recv4R1aDsOKhgigu\"},{\"type\":\"button\",\"action_id\":\"edit\",\"text\":{\"type\":\"plain_text\",\"text\":\":pencil2: Edit First\",\"emoji\":true},\"value\":\"recv4R1aDsOKhgigu\"},{\"type\":\"button\",\"action_id\":\"reject\",\"text\":{\"type\":\"plain_text\",\"text\":\":x: Reject\",\"emoji\":true},\"style\":\"danger\",\"value\":\"recv4R1aDsOKhgigu\"}]}]},\"state\":{\"values\":{}},\"response_url\":\"https:\\/\\/hooks.slack.com\\/actions\\/T0BJF8QSDB2\\/11671360384467\\/CsVsFTp3Y6bdwvbPVZVLBs5t\",\"actions\":[{\"action_id\":\"approve\",\"block_id\":\"AwWb+\",\"text\":{\"type\":\"plain_text\",\"text\":\":white_check_mark: Approve\",\"emoji\":true},\"value\":\"recv4R1aDsOKhgigu\",\"style\":\"primary\",\"type\":\"button\",\"action_ts\":\"1785112935.424232\"}]}"
+          },
+          "webhookUrl": "https://f6nvuwee.rpcl.app/webhook/4241ac8b-5022-44ae-ac31-774246325967",
+          "executionMode": "production"
+        },
+        "pairedItem": {
+          "item": 0
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get Active Feeds",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Active Feeds": {
+      "main": [
+        [
+          {
+            "node": "Get Existing URLs",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [
+          {
+            "node": "Deduplicate Against Article_Pool",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "RSS Read1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "RSS Read1": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Deduplicate Against Article_Pool": {
+      "main": [
+        [
+          {
+            "node": "Limit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Rank Articles",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "Structured Output Parser",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Rank Articles",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items1": {
+      "main": [
+        [
+          {
+            "node": "Filter Top Articles",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "Rank Articles",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rank Articles": {
+      "main": [
+        [
+          {
+            "node": "Merge Score With Article",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limit": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Brand Guidelines": {
+      "main": [
+        [
+          {
+            "node": "Aggregate Articles",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate Articles": {
+      "main": [
+        [
+          {
+            "node": "Generate Newsletter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Generate Newsletter",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "Structured Output Parser1",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser1": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Generate Newsletter",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Newsletter": {
+      "main": [
+        [
+          {
+            "node": "Save Draft to Airtable",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Top Articles": {
+      "main": [
+        [
+          {
+            "node": "Get Brand Guidelines",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Score With Article": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Generate Newsletter",
+            "type": "ai_languageModel",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Save Draft to Airtable": {
+      "main": [
+        [
+          {
+            "node": "Build Slack Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack Approval Webhook": {
+      "main": [
+        [
+          {
+            "node": "Parse Slack Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Slack Message": {
+      "main": [
+        [
+          {
+            "node": "Post to Slack for Approval (HTTP)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Rank Articles",
+            "type": "ai_languageModel",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "Get Draft By ID",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Update record",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark as Rejected",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Draft By ID": {
+      "main": [
+        [
+          {
+            "node": "Get Audience Segments",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Newsletter Campaign": {
+      "main": [
+        [
+          {
+            "node": "Send Campaign Now",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Slack Payload": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Campaign Now": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Audience Segments": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items2": {
+      "main": [
+        [
+          {
+            "node": "Mark as Sent",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Re-angle Content",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model2": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Re-angle Content",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "Structured Output Parser2",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser2": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Re-angle Content",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Re-angle Content": {
+      "main": [
+        [
+          {
+            "node": "Build Segmented HTML",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq Chat Model2": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Re-angle Content",
+            "type": "ai_languageModel",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Build Segmented HTML": {
+      "main": [
+        [
+          {
+            "node": "Send Newsletter Campaign",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark as Rejected": {
+      "main": [
+        [
+          {
+            "node": "Notify Rejection",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update record": {
+      "main": [
+        [
+          {
+            "node": "Notify Edit Requested",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "fef8411f-49e7-4bdf-b1ea-bdafa0b912c0",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "797e1d7f5c66ac05aca3e1235fdd862ac6b84011015dc4a03bdfe55d9f3791ca"
+  },
+  "nodeGroups": [],
+  "id": "sKuTV8Bd8UQvDuLJ",
+  "tags": []
+}
