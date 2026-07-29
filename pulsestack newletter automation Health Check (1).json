@@ -1,0 +1,337 @@
+{
+  "name": "pulsestack newletter automation Health Check",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "weeks",
+              "triggerAtDay": [
+                1
+              ],
+              "triggerAtHour": 9
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -32,
+        288
+      ],
+      "id": "be3319d1-a60f-4b96-adac-f34d5714aa29",
+      "name": "Schedule Trigger1"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "b408e8d8-773c-4f2a-8a1a-4c8b48f654af",
+              "leftValue": "={{ $json.id }}",
+              "rightValue": 1,
+              "operator": {
+                "type": "string",
+                "operation": "empty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        400,
+        192
+      ],
+      "id": "ba8ac886-dcee-4b99-9821-808c587de744",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://slack.com/api/chat.postMessage",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"channel\": \"#alerts\",\n  \"text\": \"🚨 No newsletter draft found for this week. Something may have failed silently — go check the main workflow's execution history.\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        608,
+        96
+      ],
+      "id": "838cf396-38b6-4e14-8e02-83d4a17f1dec",
+      "name": "Alert - No Draft Found",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "BPSWhi8ZONZlZx2u",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "search",
+        "base": {
+          "__rl": true,
+          "value": "appQgQ1YDOK8zXQPC",
+          "mode": "list",
+          "cachedResultName": "PulseStack Newsletter",
+          "cachedResultUrl": "https://airtable.com/appQgQ1YDOK8zXQPC"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tbln1MQlxphftV4R1",
+          "mode": "list",
+          "cachedResultName": "Newsletter Archive",
+          "cachedResultUrl": "https://airtable.com/appQgQ1YDOK8zXQPC/tbln1MQlxphftV4R1"
+        },
+        "filterByFormula": "==IS_SAME({Week}, DATETIME_PARSE('2020-01-01'), 'week')",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.2,
+      "position": [
+        192,
+        192
+      ],
+      "id": "2033e741-837a-4de4-914c-c7b36f6c1806",
+      "name": "Check This Week's Draft",
+      "alwaysOutputData": true,
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "xga7Pc3nPg9k4QqR",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "3a7ce03e-d057-4199-b31c-035af1fc6156",
+              "leftValue": "={{ $items().length }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        368,
+        384
+      ],
+      "id": "0120ac9a-865c-43e1-9d77-80ae9de05f8d",
+      "name": "Any Stale Drafts?1"
+    },
+    {
+      "parameters": {
+        "operation": "search",
+        "base": {
+          "__rl": true,
+          "value": "appQgQ1YDOK8zXQPC",
+          "mode": "list",
+          "cachedResultName": "PulseStack Newsletter",
+          "cachedResultUrl": "https://airtable.com/appQgQ1YDOK8zXQPC"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tbln1MQlxphftV4R1",
+          "mode": "list",
+          "cachedResultName": "Newsletter Archive",
+          "cachedResultUrl": "https://airtable.com/appQgQ1YDOK8zXQPC/tbln1MQlxphftV4R1"
+        },
+        "filterByFormula": "==AND({Status} = 'Draft', DATETIME_DIFF(NOW(), {Week}, 'hours') > 24)",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.2,
+      "position": [
+        160,
+        384
+      ],
+      "id": "ded90257-5ff4-4198-9efc-8627e47fde9d",
+      "name": "Check for Stale Drafts",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "xga7Pc3nPg9k4QqR",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://slack.com/api/chat.postMessage",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"channel\": \"#alerts\",\n  \"text\": \"{{ $json.summary }}\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        784,
+        448
+      ],
+      "id": "552c7d3a-6cf6-4ed2-9f77-11117a29db84",
+      "name": "Alert - Stale Draft",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "BPSWhi8ZONZlZx2u",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const drafts = items.map(i =>\n  `• ${i.json.fields['Subject Line']} (waiting since ${i.json.fields.Week}) — https://airtable.com/appQgQ1YDOK8zXQPC/tbln1MQlxphftV4R1/${i.json.id}`\n).join('\\\\n');\n\nreturn [{\n  json: {\n    summary: `⏰ ${items.length} newsletter draft(s) waiting for approval over 24 hours:\\\\n${drafts}`\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        592,
+        448
+      ],
+      "id": "9a38c505-d5db-494c-bdcd-5d2fc9955f14",
+      "name": "Summarize Stale Drafts"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger1": {
+      "main": [
+        [
+          {
+            "node": "Check This Week's Draft",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Check for Stale Drafts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Alert - No Draft Found",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check This Week's Draft": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Any Stale Drafts?1": {
+      "main": [
+        [
+          {
+            "node": "Summarize Stale Drafts",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Check for Stale Drafts": {
+      "main": [
+        [
+          {
+            "node": "Any Stale Drafts?1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Summarize Stale Drafts": {
+      "main": [
+        [
+          {
+            "node": "Alert - Stale Draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "8f8fada2-605c-4d88-bf61-584b9b1d3d3a",
+  "meta": {
+    "instanceId": "797e1d7f5c66ac05aca3e1235fdd862ac6b84011015dc4a03bdfe55d9f3791ca"
+  },
+  "nodeGroups": [],
+  "id": "uXvr6Msd1c5ajGg9",
+  "tags": []
+}
