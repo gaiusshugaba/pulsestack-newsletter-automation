@@ -53,8 +53,3 @@ Three separate workflows, not one — each has a different change frequency and 
 
 Built and tested in a staging environment before promotion to production. See `PRODUCTION-READINESS.md` for the full audit across compliance, reliability, cost/scaling, data quality, and change management.
 
-## Documents in this repo
-
-- `TECHNICAL-DECISIONS.md` — architecture reasoning, the debugging journey, and honest tradeoffs
-- `PRODUCTION-READINESS.md` — the production-readiness audit and what's built vs. deferred
-- `CHANGE-LOG.md` — running history of what changed and why
