@@ -49,7 +49,6 @@ Three separate workflows, not one — each has a different change frequency and 
 | Email delivery | Brevo | Genuinely usable free tier (300/day, 100K contacts) vs. Mailchimp's gutted free plan |
 | Approval interface | Slack (via direct API calls, not the native n8n Slack node — see technical doc) | Human-in-the-loop gate before anything reaches subscribers |
 
-## Status
-
-Built and tested in a staging environment before promotion to production. See `PRODUCTION-READINESS.md` for the full audit across compliance, reliability, cost/scaling, data quality, and change management.
-
+Documents in this repo
+TECHNICAL-DECISIONS.md — architecture reasoning, the debugging journey, and honest tradeoffs
+CHANGE-LOG.md — running history of what changed and why
